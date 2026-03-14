@@ -1,20 +1,19 @@
 import { useState } from 'react';
+// 1. Importando o nosso mensageiro Axios configurado
+import api from '../services/api';
 
 export default function Dashboard() {
-    // 1. Nossos "blocos de notas" (Estados)
     const [arquivo, setArquivo] = useState(null);
     const [relatorio, setRelatorio] = useState('');
     const [carregando, setCarregando] = useState(false);
 
-    // 2. Função que "escuta" quando o usuário escolhe um arquivo
     const handleFileChange = (e) => {
-        // e.target.files é uma lista. Pegamos o primeiro arquivo [0]
         setArquivo(e.target.files[0]);
     };
 
-    // 3. O que acontece ao clicar em "Gerar Relatório"
-    const handleUpload = (e) => {
-        e.preventDefault(); // Segurando a página para não recarregar!
+    // 2. A palavra "async" avisa que essa função vai ter pausas (esperar a internet)
+    const handleUpload = async (e) => {
+        e.preventDefault();
 
         if (!arquivo) {
             alert("Por favor, selecione uma planilha primeiro.");
@@ -22,16 +21,31 @@ export default function Dashboard() {
         }
 
         setCarregando(true);
-        setRelatorio(''); // Limpa o relatório anterior, se houver
+        setRelatorio('');
 
-        // SIMULAÇÃO: Aqui entrará a chamada real para a sua API em Python no futuro.
-        // Estamos usando um "setTimeout" para fingir que a IA está pensando por 2 segundos.
-        setTimeout(() => {
+        // 3. Empacotando o arquivo para envio (FormData)
+        const formData = new FormData();
+        formData.append('planilha', arquivo);
+
+        // 4. Tentando enviar para o Back-end
+        try {
+            // O "await" manda o código pausar e esperar a resposta do servidor
+            const resposta = await api.post('/upload', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+
+            // Se deu certo, pegamos o texto que a IA gerou lá no servidor
+            setRelatorio(resposta.data.narrativa);
+
+        } catch (erro) {
+            console.error("Erro ao processar:", erro);
+            alert("Falha ao gerar o relatório. Verifique a planilha ou o servidor.");
+        } finally {
+            // O "finally" sempre roda no final, dando certo ou errado, para liberar o botão
             setCarregando(false);
-            setRelatorio(
-                "Resumo Executivo: O sell-out da marca X caiu 15% neste mês. A margem de lucro no canal marketplace ficou 5% abaixo da meta devido ao aumento das taxas logísticas. Destaque positivo para a linha Y que superou as expectativas."
-            );
-        }, 2000);
+        }
     };
 
     return (
@@ -39,25 +53,17 @@ export default function Dashboard() {
             <h2>Dashboard - BI Narrativo</h2>
             <p>Faça o upload da planilha de vendas exportada do SAP.</p>
 
-            {/* Formulário de Upload */}
             <form onSubmit={handleUpload} style={{
-                border: '2px dashed #ccc',
-                padding: '30px',
-                borderRadius: '8px',
-                marginTop: '20px'
+                border: '2px dashed #ccc', padding: '30px', borderRadius: '8px', marginTop: '20px'
             }}>
 
                 <div style={{ marginBottom: '20px' }}>
-                    <input
-                        type="file"
-                        accept=".xlsx, .csv" // Restringe os formatos aceitos
-                        onChange={handleFileChange}
-                    />
+                    <input type="file" accept=".xlsx, .csv" onChange={handleFileChange} />
                 </div>
 
                 <button
                     type="submit"
-                    disabled={carregando} // Desabilita o botão enquanto carrega
+                    disabled={carregando}
                     style={{
                         padding: '10px 20px',
                         backgroundColor: carregando ? '#ccc' : '#28a745',
@@ -72,20 +78,14 @@ export default function Dashboard() {
 
             </form>
 
-            {/* Renderização Condicional: Só aparece se houver um relatório */}
             {relatorio && (
                 <div style={{
-                    marginTop: '30px',
-                    padding: '20px',
-                    backgroundColor: '#f8f9fa',
-                    borderLeft: '5px solid #007bff',
-                    lineHeight: '1.6'
+                    marginTop: '30px', padding: '20px', backgroundColor: '#f8f9fa', borderLeft: '5px solid #007bff', lineHeight: '1.6'
                 }}>
                     <h3>Narrativa Gerada:</h3>
                     <p>{relatorio}</p>
                 </div>
             )}
-
         </div>
     );
 }
